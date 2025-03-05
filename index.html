@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Генерация цветовой схемы</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+        }
+        .color-picker {
+            margin-bottom: 20px;
+        }
+        .color-picker label {
+            margin-right: 20px;
+            font-size: 16px;
+        }
+        .btn {
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s, color 0.3s;
+        }
+    </style>
+</head>
+<body>
+<h1>Генерация цветовой схемы</h1>
+<div class="color-picker">
+    <label>
+        Primary: <input type="color" id="primaryColor" value="#0d6efd">
+    </label>
+    <label>
+        Secondary: <input type="color" id="secondaryColor" value="#6c757d">
+    </label>
+</div>
+<div id="buttonsContainer">
+    <!-- Кнопки с цветами появятся здесь -->
+</div>
+
+<script>
+    // Функции для работы с цветами
+
+    // HEX -> RGB
+    function hexToRgb(hex) {
+        hex = hex.replace(/^#/, '');
+        if (hex.length === 3) {
+            hex = hex.split('').map(h => h + h).join('');
+        }
+        const bigint = parseInt(hex, 16);
+        const r = (bigint >> 16) & 255;
+        const g = (bigint >> 8) & 255;
+        const b = bigint & 255;
+        return { r, g, b };
+    }
+
+    // RGB -> HEX
+    function rgbToHex(r, g, b) {
+        return "#" + ((1 << 24) + (r << 16) + (g << 8) + b)
+            .toString(16).slice(1).toUpperCase();
+    }
+
+    // RGB -> HSL
+    function rgbToHsl(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+        if (max === min) {
+            h = s = 0;
+        } else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch(max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h *= 60;
+        }
+        return { h, s, l };
+    }
+
+    // HSL -> RGB
+    function hslToRgb(h, s, l) {
+        h /= 360;
+        let r, g, b;
+        if (s === 0) {
+            r = g = b = l;
+        } else {
+            const hue2rgb = (p, q, t) => {
+                if (t < 0) t += 1;
+                if (t > 1) t -= 1;
+                if (t < 1/6) return p + (q - p) * 6 * t;
+                if (t < 1/2) return q;
+                if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                return p;
+            };
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            r = hue2rgb(p, q, h + 1/3);
+            g = hue2rgb(p, q, h);
+            b = hue2rgb(p, q, h - 1/3);
+        }
+        return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+    }
+
+    // HSL -> HEX
+    function hslToHex(h, s, l) {
+        const rgb = hslToRgb(h, s, l);
+        return rgbToHex(rgb.r, rgb.g, rgb.b);
+    }
+
+    // Ограничение значения
+    function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+    }
+
+    // Функция для расчёта контрастного цвета текста (на основе яркости по YIQ)
+    function getContrastColor(hex) {
+        const { r, g, b } = hexToRgb(hex);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        return brightness > 128 ? "#000000" : "#FFFFFF";
+    }
+
+    // Алгоритм генерации палитры на основе двух базовых цветов
+    function generatePalette(primaryHex, secondaryHex) {
+        const primaryRgb = hexToRgb(primaryHex);
+        const secondaryRgb = hexToRgb(secondaryHex);
+        const primaryHSL = rgbToHsl(primaryRgb.r, primaryRgb.g, primaryRgb.b);
+        const secondaryHSL = rgbToHsl(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b);
+
+        // Рассчитываем среднюю насыщенность и светлоту (для элементов, где требуется вычисление)
+        const baseSat = clamp((primaryHSL.s + secondaryHSL.s) / 2, 0.5, 0.95);
+        const baseLight = clamp((primaryHSL.l + secondaryHSL.l) / 2, 0.4, 0.7);
+
+        const colors = {};
+        colors.Primary = primaryHex;
+        colors.Secondary = secondaryHex;
+
+        // Если базовые цвета соответствуют дефолтным Bootstrap (#0d6efd и #6c757d),
+        // то для Danger, Success, Warning и Info задаём фиксированные значения.
+        if (primaryHex.toLowerCase() === "#0d6efd" && secondaryHex.toLowerCase() === "#6c757d") {
+            colors.Danger = "#dc3545";  // красный
+            colors.Success = "#198754"; // зелёный
+            colors.Warning = "#ffc107"; // желтый
+            colors.Info = "#0dcaf0";    // циановый
+        } else {
+            // Иначе вычисляем их на основе базовых значений
+            // Danger: фиксированный hue = 0, saturation не ниже 0.70 и lightness ~0.55
+            colors.Danger = hslToHex(0, Math.max(clamp(baseSat * 1.2, 0, 1), 0.70), 0.55);
+            // Success: используем hue 146, с небольшим увеличением насыщенности и сниженной светлотой
+            colors.Success = hslToHex(146, Math.max(clamp(baseSat * 1.3, 0, 1), 0.68), 0.38);
+            // Warning: фиксируем hue = 45, насыщенность 1.0 и lightness ~0.55
+            colors.Warning = hslToHex(45, 1.0, 0.55);
+            // Info: фиксируем hue = 187, насыщенность 0.90 и lightness ~0.55
+            colors.Info = hslToHex(187, 0.90, 0.55);
+        }
+
+        // Light и Dark генерируются исходя из базового оттенка primary
+        colors.Light = hslToHex(primaryHSL.h, Math.min(baseSat, 0.2), 0.95);
+        colors.Dark = hslToHex(primaryHSL.h, Math.min(baseSat, 0.3), 0.15);
+
+        return colors;
+    }
+
+    // Функция для отрисовки кнопок с эффектами Hover/Active и подходящим цветом текста
+    function renderButtons(colors) {
+        const container = document.getElementById("buttonsContainer");
+        container.innerHTML = "";
+
+        for (const key in colors) {
+            const btn = document.createElement("button");
+            btn.className = "btn";
+            btn.style.backgroundColor = colors[key];
+            btn.style.color = getContrastColor(colors[key]);
+            btn.innerText = key;
+
+            // Эффекты Hover/Active: изменяем яркость фона
+            btn.addEventListener("mouseover", () => {
+                btn.style.backgroundColor = adjustLightness(colors[key], -0.1);
+            });
+            btn.addEventListener("mouseout", () => {
+                btn.style.backgroundColor = colors[key];
+            });
+            btn.addEventListener("mousedown", () => {
+                btn.style.backgroundColor = adjustLightness(colors[key], -0.2);
+            });
+            btn.addEventListener("mouseup", () => {
+                btn.style.backgroundColor = adjustLightness(colors[key], -0.1);
+            });
+
+            container.appendChild(btn);
+        }
+    }
+
+    // Функция для изменения светлоты цвета (delta может быть отрицательным)
+    function adjustLightness(hex, delta) {
+        const rgb = hexToRgb(hex);
+        const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+        hsl.l = clamp(hsl.l + delta, 0, 1);
+        return hslToHex(hsl.h, hsl.s, hsl.l);
+    }
+
+    // Обновление палитры при изменении базовых цветов
+    function updatePalette() {
+        const primary = document.getElementById("primaryColor").value;
+        const secondary = document.getElementById("secondaryColor").value;
+        const palette = generatePalette(primary, secondary);
+        renderButtons(palette);
+    }
+
+    document.getElementById("primaryColor").addEventListener("input", updatePalette);
+    document.getElementById("secondaryColor").addEventListener("input", updatePalette);
+
+    // Первая отрисовка при загрузке
+    updatePalette();
+</script>
+</body>
+</html>
