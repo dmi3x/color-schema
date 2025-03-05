@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Генерация цветовой схемы</title>
+    <title>Color Scheme Generator</title>
     <style>
         body {
             font-family: sans-serif;
@@ -26,7 +26,7 @@
     </style>
 </head>
 <body>
-<h1>Генерация цветовой схемы</h1>
+<h1>Color Scheme Generator</h1>
 <div class="color-picker">
     <label>
         Primary: <input type="color" id="primaryColor" value="#0d6efd">
@@ -36,11 +36,11 @@
     </label>
 </div>
 <div id="buttonsContainer">
-    <!-- Кнопки с цветами появятся здесь -->
+    <!-- Buttons with colors will appear here -->
 </div>
 
 <script>
-    // Функции для работы с цветами
+    // Functions for working with colors
 
     // HEX -> RGB
     function hexToRgb(hex) {
@@ -111,26 +111,26 @@
         return rgbToHex(rgb.r, rgb.g, rgb.b);
     }
 
-    // Ограничение значения
+    // Clamp value
     function clamp(value, min, max) {
         return Math.min(Math.max(value, min), max);
     }
 
-    // Функция для расчёта контрастного цвета текста (на основе яркости по YIQ)
+    // Function to calculate contrasting text color (based on brightness by YIQ)
     function getContrastColor(hex) {
         const { r, g, b } = hexToRgb(hex);
         const brightness = (r * 299 + g * 587 + b * 114) / 1000;
         return brightness > 128 ? "#000000" : "#FFFFFF";
     }
 
-    // Алгоритм генерации палитры на основе двух базовых цветов
+    // Algorithm for generating a palette based on two base colors
     function generatePalette(primaryHex, secondaryHex) {
         const primaryRgb = hexToRgb(primaryHex);
         const secondaryRgb = hexToRgb(secondaryHex);
         const primaryHSL = rgbToHsl(primaryRgb.r, primaryRgb.g, primaryRgb.b);
         const secondaryHSL = rgbToHsl(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b);
 
-        // Рассчитываем среднюю насыщенность и светлоту (для элементов, где требуется вычисление)
+        // Calculate average saturation and lightness (for elements where calculation is required)
         const baseSat = clamp((primaryHSL.s + secondaryHSL.s) / 2, 0.5, 0.95);
         const baseLight = clamp((primaryHSL.l + secondaryHSL.l) / 2, 0.4, 0.7);
 
@@ -138,33 +138,33 @@
         colors.Primary = primaryHex;
         colors.Secondary = secondaryHex;
 
-        // Если базовые цвета соответствуют дефолтным Bootstrap (#0d6efd и #6c757d),
-        // то для Danger, Success, Warning и Info задаём фиксированные значения.
+        // If base colors match default Bootstrap (#0d6efd and #6c757d),
+        // then set fixed values for Danger, Success, Warning, and Info.
         if (primaryHex.toLowerCase() === "#0d6efd" && secondaryHex.toLowerCase() === "#6c757d") {
-            colors.Danger = "#dc3545";  // красный
-            colors.Success = "#198754"; // зелёный
-            colors.Warning = "#ffc107"; // желтый
-            colors.Info = "#0dcaf0";    // циановый
+            colors.Danger = "#dc3545";  // red
+            colors.Success = "#198754"; // green
+            colors.Warning = "#ffc107"; // yellow
+            colors.Info = "#0dcaf0";    // cyan
         } else {
-            // Иначе вычисляем их на основе базовых значений
-            // Danger: фиксированный hue = 0, saturation не ниже 0.70 и lightness ~0.55
+            // Otherwise, calculate them based on base values
+            // Danger: fixed hue = 0, saturation not less than 0.70 and lightness ~0.55
             colors.Danger = hslToHex(0, Math.max(clamp(baseSat * 1.2, 0, 1), 0.70), 0.55);
-            // Success: используем hue 146, с небольшим увеличением насыщенности и сниженной светлотой
+            // Success: use hue 146, with slight increase in saturation and lower lightness
             colors.Success = hslToHex(146, Math.max(clamp(baseSat * 1.3, 0, 1), 0.68), 0.38);
-            // Warning: фиксируем hue = 45, насыщенность 1.0 и lightness ~0.55
+            // Warning: fixed hue = 45, saturation 1.0 and lightness ~0.55
             colors.Warning = hslToHex(45, 1.0, 0.55);
-            // Info: фиксируем hue = 187, насыщенность 0.90 и lightness ~0.55
+            // Info: fixed hue = 187, saturation 0.90 and lightness ~0.55
             colors.Info = hslToHex(187, 0.90, 0.55);
         }
 
-        // Light и Dark генерируются исходя из базового оттенка primary
+        // Light and Dark are generated based on primary hue
         colors.Light = hslToHex(primaryHSL.h, Math.min(baseSat, 0.2), 0.95);
         colors.Dark = hslToHex(primaryHSL.h, Math.min(baseSat, 0.3), 0.15);
 
         return colors;
     }
 
-    // Функция для отрисовки кнопок с эффектами Hover/Active и подходящим цветом текста
+    // Function to render buttons with Hover/Active effects and appropriate text color
     function renderButtons(colors) {
         const container = document.getElementById("buttonsContainer");
         container.innerHTML = "";
@@ -176,7 +176,7 @@
             btn.style.color = getContrastColor(colors[key]);
             btn.innerText = key;
 
-            // Эффекты Hover/Active: изменяем яркость фона
+            // Hover/Active effects: change background brightness
             btn.addEventListener("mouseover", () => {
                 btn.style.backgroundColor = adjustLightness(colors[key], -0.1);
             });
@@ -194,7 +194,7 @@
         }
     }
 
-    // Функция для изменения светлоты цвета (delta может быть отрицательным)
+    // Function to change the lightness of a color (delta can be negative)
     function adjustLightness(hex, delta) {
         const rgb = hexToRgb(hex);
         const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
@@ -202,7 +202,7 @@
         return hslToHex(hsl.h, hsl.s, hsl.l);
     }
 
-    // Обновление палитры при изменении базовых цветов
+    // Update palette when base colors change
     function updatePalette() {
         const primary = document.getElementById("primaryColor").value;
         const secondary = document.getElementById("secondaryColor").value;
@@ -213,7 +213,7 @@
     document.getElementById("primaryColor").addEventListener("input", updatePalette);
     document.getElementById("secondaryColor").addEventListener("input", updatePalette);
 
-    // Первая отрисовка при загрузке
+    // Initial render on load
     updatePalette();
 </script>
 </body>
